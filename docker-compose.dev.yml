@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # NestJS 개발 서버
+  app:
+    build:
+      context: .
+      target: builder
+    container_name: snap-croc-dev
+    ports:
+      - "3000:3000"
+      - "9229:9229" # 디버그 포트
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://snap_user:snap_password@postgres:5432/snap_croc_dev
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./logs:/app/logs
+    command: sh -c "npm install && npx ts-node-dev --respawn --transpile-only src/main.ts"
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - snap-croc-dev-network
+    restart: unless-stopped
+
+  # Redis (개발용)
+  redis:
+    image: redis:7-alpine
+    container_name: snap-croc-redis-dev
+    ports:
+      - "6380:6379" # 다른 포트 사용
+    command: redis-server
+    networks:
+      - snap-croc-dev-network
+
+  # PostgreSQL 개발 데이터베이스
+  postgres:
+    image: postgres:15-alpine
+    container_name: snap-croc-postgres-dev
+    ports:
+      - "5433:5432" # 다른 포트 사용
+    environment:
+      - POSTGRES_DB=snap_croc_dev
+      - POSTGRES_USER=snap_user
+      - POSTGRES_PASSWORD=snap_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-dev.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - snap-croc-dev-network
+
+  # pgAdmin (개발용 DB 관리)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: snap-croc-pgadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@snapcroc.com
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - snap-croc-dev-network
+
+volumes:
+  postgres_dev_data:
+  pgadmin_data:
+
+networks:
+  snap-croc-dev-network:
+    driver: bridge

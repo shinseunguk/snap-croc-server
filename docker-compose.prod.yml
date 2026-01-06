@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # NestJS 프로덕션 서버
+  app:
+    build:
+      context: .
+      target: production
+    container_name: snap-croc-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://snap_user:${DB_PASSWORD}@postgres:5432/snap_croc
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - snap-croc-prod-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Redis 프로덕션 (영속성 활성화)
+  redis:
+    image: redis:7-alpine
+    container_name: snap-croc-redis-prod
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - snap-croc-prod-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # PostgreSQL 프로덕션
+  postgres:
+    image: postgres:15-alpine
+    container_name: snap-croc-postgres-prod
+    environment:
+      - POSTGRES_DB=snap_croc
+      - POSTGRES_USER=snap_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS="--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - snap-croc-prod-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Nginx 리버스 프록시
+  nginx:
+    image: nginx:alpine
+    container_name: snap-croc-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - app
+    networks:
+      - snap-croc-prod-network
+    restart: always
+
+  # 로그 수집 (선택사항)
+  logrotate:
+    image: alpine:latest
+    container_name: snap-croc-logrotate
+    volumes:
+      - ./logs:/logs
+      - nginx_logs:/nginx-logs
+    command: >
+      sh -c "
+        while true; do
+          find /logs -name '*.log' -size +100M -exec truncate -s 0 {} \;
+          find /nginx-logs -name '*.log' -size +100M -exec truncate -s 0 {} \;
+          sleep 3600
+        done
+      "
+    restart: always
+
+volumes:
+  redis_prod_data:
+  postgres_prod_data:
+  nginx_logs:
+
+networks:
+  snap-croc-prod-network:
+    driver: bridge

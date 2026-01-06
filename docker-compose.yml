@@ -1,0 +1,28 @@
+# 기본 Docker Compose 파일
+# 개발환경: docker-compose -f docker-compose.dev.yml up
+# 프로덕션: docker-compose -f docker-compose.prod.yml up
+
+version: '3.8'
+
+services:
+  # 기본 NestJS 애플리케이션 (로컬 개발용)
+  app:
+    build:
+      context: .
+      target: builder
+    container_name: snap-croc-local
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run start:dev
+    networks:
+      - snap-croc-local-network
+
+networks:
+  snap-croc-local-network:
+    driver: bridge
