@@ -1,25 +1,48 @@
 import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
+
+// crypto 모듈 polyfill (Node.js 18 호환성)
+if (!globalThis.crypto) {
+  globalThis.crypto = require('crypto');
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // ConfigService 가져오기
+  const configService = app.get(ConfigService);
+  
+  // Winston Logger 사용
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+  
+  // CORS 설정
+  app.enableCors({
+    origin: configService.get('cors.origin'),
+    credentials: true,
+  });
+  
   // Global prefix 설정
-  app.setGlobalPrefix('api/v1');
+  const apiPrefix = configService.get('api.prefix');
+  const apiVersion = configService.get('api.version');
+  app.setGlobalPrefix(`${apiPrefix}/${apiVersion}`);
   
   // Swagger 설정
   const config = new DocumentBuilder()
     .setTitle('Snap Croc API')
     .setDescription('Snap Croc Server API Documentation')
     .setVersion('1.0')
+    .addBearerAuth()
     .addTag('snap-croc')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
   
-  const port = process.env.PORT ?? 3000;
+  const port = configService.get('port') || 3000;
   await app.listen(port);
+  
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(`Swagger documentation: http://localhost:${port}/api-docs`);
 }
