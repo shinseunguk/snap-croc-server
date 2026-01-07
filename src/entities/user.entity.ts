@@ -7,6 +7,7 @@ import {
   Index,
   DeleteDateColumn,
 } from 'typeorm';
+import { DisplayProfileDto, DisplayProfileType } from '../modules/users/dto/display-profile.dto';
 
 export enum SocialProvider {
   GOOGLE = 'google',
@@ -45,7 +46,10 @@ export class User {
   nickname?: string;
 
   @Column({ nullable: true })
-  profileImage: string;
+  profileImage: string;  // 소셜 로그인에서 가져온 프로필 이미지 URL
+
+  @Column({ nullable: true })
+  profileImageUrl?: string;  // 사용자가 업로드한 커스텀 프로필 이미지 URL
 
   @Column({
     type: 'enum',
@@ -73,8 +77,8 @@ export class User {
   points: number;
 
   // 사용자 커스터마이징
-  @Column({ default: '🐊' })  // 기본 악어 이모지
-  avatar: string;
+  @Column({ default: '🐊', nullable: true })  // 기본 악어 이모지
+  avatar?: string;
 
   @Column({ default: 0 })
   gamesPlayed: number;
@@ -132,5 +136,42 @@ export class User {
     if (this.points >= 700) return '🥈 실버';
     if (this.points >= 300) return '🥉 브론즈';
     return '🌱 뉴비';
+  }
+
+  // 프로필 표시 우선순위에 따른 실제 표시할 프로필 계산
+  get displayProfile(): DisplayProfileDto {
+    // 1순위: 사용자가 업로드한 커스텀 이미지
+    if (this.profileImageUrl) {
+      return {
+        type: DisplayProfileType.IMAGE,
+        value: this.profileImageUrl,
+        source: 'custom_upload',
+      };
+    }
+
+    // 2순위: 사용자가 선택한 이모지
+    if (this.avatar) {
+      return {
+        type: DisplayProfileType.EMOJI,
+        value: this.avatar,
+        source: 'selected_emoji',
+      };
+    }
+
+    // 3순위: 소셜 로그인에서 가져온 프로필 이미지
+    if (this.profileImage) {
+      return {
+        type: DisplayProfileType.IMAGE,
+        value: this.profileImage,
+        source: 'social_login',
+      };
+    }
+
+    // 4순위: 기본 이모지
+    return {
+      type: DisplayProfileType.EMOJI,
+      value: '🐊',
+      source: 'default',
+    };
   }
 }

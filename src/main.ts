@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AppModule } from './app.module';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { ImageProcessingService } from './common/multer/image-processing.service';
 
 // crypto 모듈 polyfill (Node.js 18 호환성)
 if (!globalThis.crypto) {
@@ -11,13 +14,22 @@ if (!globalThis.crypto) {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // ConfigService 가져오기
   const configService = app.get(ConfigService);
 
   // Winston Logger 사용
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+
+  // 업로드 디렉토리 생성 확인
+  const imageProcessingService = app.get(ImageProcessingService);
+  await imageProcessingService.ensureUploadDirectory();
+
+  // 정적 파일 서빙 설정
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   // CORS 설정
   app.enableCors({

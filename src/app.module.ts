@@ -5,12 +5,14 @@ import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from './logger/logger.module';
+import { UsersModule } from './modules/users/users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe } from './common/pipes/validation.pipe';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ImageProcessingService } from './common/multer/image-processing.service';
 
 @Module({
   imports: [
@@ -21,10 +23,12 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     LoggerModule,
     DatabaseModule,
     AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    ImageProcessingService,
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
