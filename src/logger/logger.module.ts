@@ -9,9 +9,10 @@ import * as path from 'path';
     WinstonModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const logLevel = configService.get('logging.level') || 'info';
-        const logPath = configService.get('logging.filePath') || './logs';
-        
+        const logLevel = configService.get<string>('logging.level') || 'info';
+        const logPath =
+          configService.get<string>('logging.filePath') || './logs';
+
         return {
           level: logLevel,
           format: winston.format.combine(
@@ -25,9 +26,21 @@ import * as path from 'path';
             new winston.transports.Console({
               format: winston.format.combine(
                 winston.format.colorize(),
-                winston.format.printf(({ timestamp, level, message, stack }) => {
-                  return `${timestamp} [${level}] ${message}${stack ? `\n${stack}` : ''}`;
-                }),
+                winston.format.printf(
+                  ({
+                    timestamp,
+                    level,
+                    message,
+                    stack,
+                  }: {
+                    timestamp: string;
+                    level: string;
+                    message: string;
+                    stack?: string;
+                  }) => {
+                    return `${timestamp} [${level}] ${message}${stack ? `\n${stack}` : ''}`;
+                  },
+                ),
               ),
             }),
             new winston.transports.File({

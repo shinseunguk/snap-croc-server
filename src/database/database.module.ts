@@ -1,11 +1,13 @@
 // crypto 모듈 polyfill (Node.js 18 호환성)
 if (!globalThis.crypto) {
-  globalThis.crypto = require('crypto');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  globalThis.crypto = require('crypto') as Crypto;
 }
 
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '../entities/user.entity';
 
 @Module({
   imports: [
@@ -18,7 +20,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
-        entities: [],
+        entities: [User],
         synchronize: configService.get('nodeEnv') === 'development',
         logging: configService.get('nodeEnv') === 'development',
         timezone: '+09:00',
