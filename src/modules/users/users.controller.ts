@@ -25,9 +25,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { UpdateNicknameDto } from './dto/update-nickname.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { UpdateAvatarDto, ProfileImageUploadResponseDto } from './dto/update-avatar.dto';
+import { UpdateProfileDto, UpdateProfileResponseDto } from './dto/update-profile.dto';
 import { User } from '../../entities/user.entity';
 import { profileImageMulterConfig } from '../../common/multer/multer.config';
 import type { Request } from 'express';
@@ -55,28 +54,6 @@ export class UsersController {
     return this.usersService.getUserInfo(req.user.id);
   }
 
-  @Put('me/nickname')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '닉네임 설정/변경' })
-  @ApiBody({ type: UpdateNicknameDto })
-  @ApiResponse({
-    status: 200,
-    description: '닉네임 변경 성공',
-    type: UserResponseDto,
-  })
-  @ApiResponse({ status: 400, description: '유효하지 않은 닉네임' })
-  @ApiResponse({ status: 401, description: '인증 필요' })
-  @ApiResponse({ status: 409, description: '이미 사용 중인 닉네임' })
-  async updateNickname(
-    @Req() req: AuthenticatedRequest,
-    @Body() updateNicknameDto: UpdateNicknameDto,
-  ): Promise<UserResponseDto> {
-    return this.usersService.updateNickname(
-      req.user.id,
-      updateNicknameDto.nickname,
-    );
-  }
 
   @Get('nickname/check/:nickname')
   @ApiOperation({ summary: '닉네임 중복 확인' })
@@ -109,60 +86,59 @@ export class UsersController {
     };
   }
 
-  @Post('me/profile-image')
+
+
+  @Put('me/profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file', profileImageMulterConfig))
-  @ApiOperation({ summary: '프로필 이미지 업로드' })
+  @UseInterceptors(FileInterceptor('profileImage', profileImageMulterConfig))
+  @ApiOperation({ 
+    summary: '프로필 통합 업데이트 (닉네임 + 아바타 + 이미지를 한 번에)' 
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: '프로필 이미지 파일',
+    description: '프로필 업데이트 정보 (닉네임, 아바타 설정, 이미지 파일)',
     schema: {
       type: 'object',
       properties: {
-        file: {
+        nickname: {
+          type: 'string',
+          description: '변경할 닉네임 (선택적)',
+          example: '스냅킹2024',
+        },
+        avatarType: {
+          type: 'string',
+          enum: ['emoji', 'image'],
+          description: '아바타 타입 (선택적)',
+          example: 'emoji',
+        },
+        avatarValue: {
+          type: 'string',
+          description: '아바타 값 (이모지인 경우 필수, 이미지인 경우 생략 가능)',
+          example: '🦖',
+        },
+        profileImage: {
           type: 'string',
           format: 'binary',
-          description: '이미지 파일 (JPG, PNG, GIF, WebP, 최대 5MB)',
+          description: '프로필 이미지 파일 (선택적, JPG, PNG, GIF, WebP)',
         },
       },
     },
   })
   @ApiResponse({
-    status: 201,
-    description: '프로필 이미지 업로드 성공',
-    type: ProfileImageUploadResponseDto,
-  })
-  @ApiResponse({ status: 400, description: '잘못된 파일 형식 또는 크기 초과' })
-  @ApiResponse({ status: 401, description: '인증 필요' })
-  async uploadProfileImage(
-    @Req() req: AuthenticatedRequest,
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<ProfileImageUploadResponseDto> {
-    if (!file) {
-      throw new BadRequestException('파일을 선택해주세요.');
-    }
-
-    return this.usersService.uploadProfileImage(req.user.id, file);
-  }
-
-  @Put('me/avatar')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: '아바타 변경 (이모지 또는 업로드된 이미지 선택)' })
-  @ApiBody({ type: UpdateAvatarDto })
-  @ApiResponse({
     status: 200,
-    description: '아바타 변경 성공',
-    type: UserResponseDto,
+    description: '프로필 업데이트 성공',
+    type: UpdateProfileResponseDto,
   })
-  @ApiResponse({ status: 400, description: '잘못된 아바타 값' })
+  @ApiResponse({ status: 400, description: '잘못된 입력 값' })
   @ApiResponse({ status: 401, description: '인증 필요' })
-  async updateAvatar(
+  @ApiResponse({ status: 409, description: '이미 사용 중인 닉네임' })
+  async updateProfile(
     @Req() req: AuthenticatedRequest,
-    @Body() updateAvatarDto: UpdateAvatarDto,
-  ): Promise<UserResponseDto> {
-    return this.usersService.updateAvatar(req.user.id, updateAvatarDto);
+    @Body() updateProfileDto: UpdateProfileDto,
+    @UploadedFile() profileImage?: Express.Multer.File,
+  ): Promise<UpdateProfileResponseDto> {
+    return this.usersService.updateProfile(req.user.id, updateProfileDto, profileImage);
   }
 
   @Delete('me')

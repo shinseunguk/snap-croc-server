@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserResponseDto } from './dto/user-response.dto';
-import { UpdateAvatarDto, AvatarType, ProfileImageUploadResponseDto } from './dto/update-avatar.dto';
+import { UpdateProfileDto, UpdateProfileResponseDto, AvatarType } from './dto/update-profile.dto';
 import { ImageProcessingService } from '../../common/multer/image-processing.service';
 import { join } from 'path';
 
@@ -32,36 +32,6 @@ export class UsersService {
     return this.mapToUserResponse(user);
   }
 
-  async updateNickname(
-    userId: number,
-    nickname: string,
-  ): Promise<UserResponseDto> {
-    // 닉네임 유효성 검사
-    this.validateNickname(nickname);
-
-    // 중복 확인
-    const existingUser = await this.userRepository.findOne({
-      where: { nickname },
-    });
-
-    if (existingUser && existingUser.id !== userId) {
-      throw new ConflictException('이미 사용 중인 닉네임입니다.');
-    }
-
-    // 닉네임 업데이트
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
-    }
-
-    user.nickname = nickname;
-    await this.userRepository.save(user);
-
-    return this.mapToUserResponse(user);
-  }
 
   async checkNicknameAvailability(nickname: string): Promise<boolean> {
     // 닉네임 유효성 검사
@@ -96,10 +66,13 @@ export class UsersService {
     await this.userRepository.softDelete(userId);
   }
 
-  async uploadProfileImage(
+
+
+  async updateProfile(
     userId: number,
-    file: Express.Multer.File,
-  ): Promise<ProfileImageUploadResponseDto> {
+    updateProfileDto: UpdateProfileDto,
+    profileImageFile?: Express.Multer.File,
+  ): Promise<UpdateProfileResponseDto> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -108,76 +81,81 @@ export class UsersService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
-    // 이전 프로필 이미지가 있다면 삭제
-    if (user.profileImageUrl) {
-      const oldFilePath = join(process.cwd(), user.profileImageUrl);
-      await this.imageProcessingService.deleteFile(oldFilePath);
+    let uploadedImageUrl: string | undefined;
+
+    // 1. 닉네임 변경 (제공된 경우)
+    if (updateProfileDto.nickname) {
+      // 닉네임 유효성 검사
+      this.validateNickname(updateProfileDto.nickname);
+
+      // 중복 확인 (본인 제외)
+      const existingUser = await this.userRepository.findOne({
+        where: { nickname: updateProfileDto.nickname },
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        throw new ConflictException('이미 사용 중인 닉네임입니다.');
+      }
+
+      user.nickname = updateProfileDto.nickname;
     }
 
-    // 이미지 리사이징 및 최적화
-    const processedFilePath = await this.imageProcessingService.resizeAndOptimize(
-      file.path,
-      300,
-      300,
-    );
+    // 2. 프로필 이미지 업로드 (파일이 제공된 경우)
+    if (profileImageFile) {
+      // 기존 프로필 이미지 삭제
+      if (user.profileImageUrl) {
+        const oldFilePath = join(process.cwd(), user.profileImageUrl);
+        await this.imageProcessingService.deleteFile(oldFilePath);
+      }
 
-    // 상대 경로로 변환 (웹에서 접근 가능하도록)
-    const relativeImageUrl = processedFilePath.replace(process.cwd(), '');
+      // 이미지 리사이징 및 최적화
+      const processedFilePath = await this.imageProcessingService.resizeAndOptimize(
+        profileImageFile.path,
+        300,
+        300,
+      );
 
-    // DB에 이미지 URL 저장
-    user.profileImageUrl = relativeImageUrl;
+      // 상대 경로로 변환
+      uploadedImageUrl = processedFilePath.replace(process.cwd(), '');
+      user.profileImageUrl = uploadedImageUrl;
+    }
+
+    // 3. 아바타 설정 (타입이 제공된 경우)
+    if (updateProfileDto.avatarType) {
+      if (updateProfileDto.avatarType === AvatarType.EMOJI) {
+        // 이모지로 설정
+        if (!updateProfileDto.avatarValue) {
+          throw new BadRequestException('이모지 값이 필요합니다.');
+        }
+
+        if (!this.isValidEmoji(updateProfileDto.avatarValue)) {
+          throw new BadRequestException('유효한 이모지가 아닙니다.');
+        }
+
+        user.avatar = updateProfileDto.avatarValue;
+
+        // 이모지로 변경할 때는 기존 업로드 이미지 삭제하지 않음
+        // (사용자가 나중에 다시 이미지로 변경할 수 있도록)
+
+      } else if (updateProfileDto.avatarType === AvatarType.IMAGE) {
+        // 이미지로 설정
+        if (!user.profileImageUrl) {
+          throw new BadRequestException(
+            '업로드된 프로필 이미지가 없습니다. 먼저 이미지를 업로드하거나 이미지 파일을 함께 전송해주세요.',
+          );
+        }
+        user.avatar = undefined; // 이미지 사용 시 avatar는 undefined
+      }
+    }
+
+    // 변경사항 저장
     await this.userRepository.save(user);
 
     return {
-      imageUrl: relativeImageUrl,
-      message: '프로필 이미지가 성공적으로 업로드되었습니다.',
+      user: this.mapToUserResponse(user),
+      uploadedImageUrl,
+      message: '프로필이 성공적으로 업데이트되었습니다.',
     };
-  }
-
-  async updateAvatar(
-    userId: number,
-    updateAvatarDto: UpdateAvatarDto,
-  ): Promise<UserResponseDto> {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('사용자를 찾을 수 없습니다.');
-    }
-
-    if (updateAvatarDto.type === AvatarType.EMOJI) {
-      // 이모지로 변경하는 경우
-      if (!updateAvatarDto.value) {
-        throw new BadRequestException('이모지 값이 필요합니다.');
-      }
-
-      // 이모지 유효성 검사
-      if (!this.isValidEmoji(updateAvatarDto.value)) {
-        throw new BadRequestException('유효한 이모지가 아닙니다.');
-      }
-
-      user.avatar = updateAvatarDto.value;
-
-      // 기존 업로드된 이미지가 있다면 삭제 (이모지로 변경할 때)
-      if (user.profileImageUrl) {
-        const filePath = join(process.cwd(), user.profileImageUrl);
-        await this.imageProcessingService.deleteFile(filePath);
-        user.profileImageUrl = undefined;
-      }
-    } else if (updateAvatarDto.type === AvatarType.IMAGE) {
-      // 업로드된 이미지로 변경하는 경우
-      if (!user.profileImageUrl) {
-        throw new BadRequestException(
-          '업로드된 프로필 이미지가 없습니다. 먼저 이미지를 업로드해주세요.',
-        );
-      }
-      // 이미지 타입일 때는 avatar 필드를 undefined로 설정
-      user.avatar = undefined;
-    }
-
-    await this.userRepository.save(user);
-    return this.mapToUserResponse(user);
   }
 
   private isValidEmoji(emoji: string): boolean {
