@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
-import { User, SocialProvider } from '../entities/user.entity';
+import { User, SocialProvider, UserStatus } from '../entities/user.entity';
 
 interface SocialUserData {
   socialId: string;
@@ -82,8 +82,11 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
 
-    // Refresh token을 DB에 저장
-    await this.userRepository.update(user.id, { refreshToken });
+    // Refresh token을 DB에 저장하고 마지막 로그인 시간 업데이트
+    await this.userRepository.update(user.id, { 
+      refreshToken,
+      lastLoginAt: new Date(),
+    });
 
     return {
       accessToken,
@@ -102,7 +105,11 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(refreshToken);
       const user = await this.userRepository.findOne({
-        where: { id: payload.sub, refreshToken },
+        where: { 
+          id: payload.sub, 
+          refreshToken,
+          status: UserStatus.ACTIVE,
+        },
       });
       return user;
     } catch {
@@ -111,6 +118,11 @@ export class AuthService {
   }
 
   async findById(id: number): Promise<User | null> {
-    return this.userRepository.findOne({ where: { id } });
+    return this.userRepository.findOne({ 
+      where: { 
+        id,
+        status: UserStatus.ACTIVE,
+      } 
+    });
   }
 }
