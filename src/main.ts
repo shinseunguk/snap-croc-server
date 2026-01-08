@@ -14,6 +14,9 @@ if (!globalThis.crypto) {
 }
 
 async function bootstrap() {
+  // 한국 시간대 설정
+  process.env.TZ = 'Asia/Seoul';
+  
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // ConfigService 가져오기
