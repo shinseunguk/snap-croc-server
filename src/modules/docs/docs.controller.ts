@@ -237,6 +237,16 @@ const socket = io('http://localhost:3000/rooms', {
 });</code>
         </div>
 
+        <div class="event client-event">
+            <h3><span class="badge">EMIT</span> update_game_settings</h3>
+            <strong>설명:</strong> 게임 설정 변경 (방장만 가능)<br>
+            <strong>데이터:</strong>
+            <code>socket.emit('update_game_settings', {
+  roomId: 1,
+  totalTeeth: 12  // 이빨 개수 (4~16)
+});</code>
+        </div>
+
         <h2 id="server-events">📥 서버 → 클라이언트 이벤트</h2>
 
         <div class="event server-event">
@@ -364,6 +374,21 @@ const socket = io('http://localhost:3000/rooms', {
     roomId: 1,
     gameId: "game_1_1767836400000",
     startedAt: "2026-01-08T02:00:00.000Z"
+  }
+  */
+});</code>
+        </div>
+
+        <div class="event server-event">
+            <h3><span class="badge">ON</span> game_settings_updated</h3>
+            <strong>설명:</strong> 게임 설정이 변경됨<br>
+            <strong>데이터 구조:</strong>
+            <code>socket.on('game_settings_updated', (data) => {
+  /*
+  {
+    roomId: 1,
+    totalTeeth: 12,  // 새로운 이빨 개수
+    updatedBy: "방장닉네임"  // 변경한 사람
   }
   */
 });</code>

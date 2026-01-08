@@ -23,6 +23,10 @@ import {
   CountdownData,
   GameStartedData,
   ErrorData,
+  GameSettingsData,
+  TurnStartedData,
+  ToothSelectedSafeData,
+  CrocodileBiteData,
 } from '../types/room-events.types';
 
 interface AuthenticatedSocket extends Socket {
@@ -247,6 +251,45 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('update_game_settings')
+  @UseGuards(WsJwtAuthGuard)
+  async handleUpdateGameSettings(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { roomId: number; totalTeeth: number },
+  ) {
+    try {
+      const { roomId, totalTeeth } = data;
+      const userId = client.user.id;
+
+      // 이빨 개수 유효성 검사
+      if (totalTeeth < 4 || totalTeeth > 16) {
+        throw new Error('이빨 개수는 4개 이상 16개 이하여야 합니다.');
+      }
+
+      // 방장 권한 확인 및 설정 업데이트
+      const updatedRoom = await this.roomsService.updateGameSettings(
+        roomId,
+        userId,
+        totalTeeth,
+      );
+
+      // 설정 변경 알림
+      const hostMember = updatedRoom.members.find(m => m.isHost);
+      
+      this.server.to(`room_${roomId}`).emit('game_settings_updated', {
+        roomId,
+        totalTeeth,
+        updatedBy: hostMember?.nickname || '방장',
+      });
+
+      this.logger.log(
+        `Game settings updated for room ${roomId}: ${totalTeeth} teeth`,
+      );
+    } catch (error) {
+      this.handleError(client, error.message);
+    }
+  }
+
   @SubscribeMessage('kick_member')
   @UseGuards(WsJwtAuthGuard)
   async handleKickMember(
@@ -346,16 +389,29 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // 게임 시작
     try {
-      // 방 상태를 게임 중으로 변경
-      await this.roomsService.startGameDirectly(roomId);
-
+      // 게임 생성 및 초기화
+      const game = await this.roomsService.startGameDirectly(roomId);
+      const roomInfo = await this.roomsService.getRoomInfo(roomId);
+      
+      // 게임 시작 데이터 (위험한 이빨 정보는 제외)
       const gameStartedData: GameStartedData = {
         roomId,
-        gameId: `game_${roomId}_${Date.now()}`,
-        startedAt: new Date(),
+        gameId: game.gameId,
+        startedAt: game.startedAt,
+        totalTeeth: game.totalTeeth,
+        dangerTooth: -1, // 클라이언트에게는 숨김
+        players: roomInfo.members.map(member => ({
+          id: member.id,
+          nickname: member.nickname,
+          avatar: member.avatar,
+        })),
       };
-
+      
       this.server.to(`room_${roomId}`).emit('game_started', gameStartedData);
+      
+      // 첫 번째 턴 시작
+      await this.startFirstTurn(game);
+      
       this.logger.log(`Game started for room ${roomId}`);
     } catch (error) {
       this.logger.error(
@@ -381,6 +437,145 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } else if (roomId) {
       this.server.to(`room_${roomId}`).emit('error', errorData);
     }
+  }
+
+  @SubscribeMessage('select_tooth')
+  @UseGuards(WsJwtAuthGuard)
+  async handleSelectTooth(
+    @ConnectedSocket() client: AuthenticatedSocket,
+    @MessageBody() data: { gameId: string; toothIndex: number },
+  ) {
+    try {
+      const { gameId, toothIndex } = data;
+      const userId = client.user.id;
+
+      // 이빨 선택 처리
+      const result = await this.roomsService.selectTooth(gameId, userId, toothIndex);
+      const game = result.game;
+
+      if (result.isSafe) {
+        // 안전한 이빨 - 다음 턴 진행
+        const nextPlayer = await this.getUserInfo(game.turnOrder[game.currentTurnIndex]);
+        
+        const toothSelectedSafeData: ToothSelectedSafeData = {
+          gameId,
+          playerId: userId,
+          nickname: client.user.name,
+          toothIndex,
+          remainingTeeth: this.getRemainingTeeth(game.totalTeeth, game.pulledTeeth),
+          nextTurn: {
+            playerId: nextPlayer.id,
+            nickname: nextPlayer.nickname,
+            turnNumber: game.pulledTeeth.length + 1,
+          },
+        };
+
+        this.server.to(`room_${game.roomId}`).emit('tooth_selected_safe', toothSelectedSafeData);
+
+        // 다음 턴 시작
+        const turnStartedData: TurnStartedData = {
+          gameId,
+          currentTurn: {
+            playerId: nextPlayer.id,
+            nickname: nextPlayer.nickname,
+            turnNumber: game.pulledTeeth.length + 1,
+          },
+          turnOrder: game.turnOrder,
+          timeLimit: 30, // 30초 제한
+        };
+
+        this.server.to(`room_${game.roomId}`).emit('turn_started', turnStartedData);
+
+      } else {
+        // 위험한 이빨 - 게임 종료
+        const crocodileBiteData: CrocodileBiteData = {
+          gameId,
+          playerId: userId,
+          nickname: client.user.name,
+          toothIndex,
+          message: '악어가 입을 다물었습니다! 💀',
+        };
+
+        this.server.to(`room_${game.roomId}`).emit('crocodile_bite', crocodileBiteData);
+
+        // 게임 종료 처리
+        await this.handleGameEnd(game);
+      }
+
+      this.logger.log(`User ${userId} selected tooth ${toothIndex} in game ${gameId}`);
+    } catch (error) {
+      this.handleError(client, error.message);
+    }
+  }
+
+  private async startFirstTurn(game: any) {
+    const firstPlayer = await this.getUserInfo(game.turnOrder[0]);
+    
+    const turnStartedData: TurnStartedData = {
+      gameId: game.gameId,
+      currentTurn: {
+        playerId: firstPlayer.id,
+        nickname: firstPlayer.nickname,
+        turnNumber: 1,
+      },
+      turnOrder: game.turnOrder,
+      timeLimit: 30,
+    };
+
+    this.server.to(`room_${game.roomId}`).emit('turn_started', turnStartedData);
+  }
+
+  private async handleGameEnd(game: any) {
+    // 승자와 패자 정보 조회
+    const winner = await this.getUserInfo(game.winnerId);
+    const loser = await this.getUserInfo(game.loserId);
+
+    const gameEndedData = {
+      roomId: game.roomId,
+      gameId: game.gameId,
+      winner: {
+        id: winner.id,
+        nickname: winner.nickname,
+        avatar: winner.avatar,
+      },
+      loser: {
+        id: loser.id,
+        nickname: loser.nickname,
+        eliminatedBy: 'crocodile_bite' as const,
+        toothIndex: game.dangerTooth,
+      },
+      stats: {
+        duration: Math.floor((new Date().getTime() - game.startedAt.getTime()) / 1000),
+        totalTurns: game.pulledTeeth.length,
+        teethPulled: game.pulledTeeth.length,
+      },
+    };
+
+    this.server.to(`room_${game.roomId}`).emit('game_ended', gameEndedData);
+
+    // 3초 후 방으로 복귀
+    setTimeout(() => {
+      this.server.to(`room_${game.roomId}`).emit('return_to_room', {
+        roomId: game.roomId,
+      });
+    }, 3000);
+  }
+
+  private getRemainingTeeth(totalTeeth: number, pulledTeeth: number[]): number[] {
+    const remaining = [];
+    for (let i = 0; i < totalTeeth; i++) {
+      if (!pulledTeeth.includes(i)) {
+        remaining.push(i);
+      }
+    }
+    return remaining;
+  }
+
+  private async getUserInfo(userId: number) {
+    // 실제로는 User 서비스에서 가져와야 하지만, 임시로 방 멤버에서 찾기
+    const rooms = await this.roomsService.getAllRoomsForUser?.(userId);
+    // 이 부분은 실제 구현에서 User 엔티티를 직접 조회해야 합니다
+    return { id: userId, nickname: `Player${userId}`, avatar: { type: 'emoji', value: '🦖' } };
   }
 
   // 외부에서 호출할 수 있는 유틸리티 메서드들

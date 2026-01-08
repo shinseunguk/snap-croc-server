@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Room, RoomStatus } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
+import { Game, GameStatus } from './entities/game.entity';
 import { CreateRoomResponseDto } from './dto/create-room.dto';
 import { RoomResponseDto, RoomMemberDto } from './dto/room-response.dto';
 
@@ -19,6 +20,8 @@ export class RoomsService {
     private readonly roomRepository: Repository<Room>,
     @InjectRepository(RoomMember)
     private readonly roomMemberRepository: Repository<RoomMember>,
+    @InjectRepository(Game)
+    private readonly gameRepository: Repository<Game>,
   ) {}
 
   private generateRoomCode(): string {
@@ -171,6 +174,7 @@ export class RoomsService {
       hostId: room.hostId,
       maxMembers: room.maxMembers,
       currentMembers: room.members.length,
+      totalTeeth: room.totalTeeth,
       members: memberDtos,
       createdAt: room.createdAt,
       gameStartedAt: room.gameStartedAt,
@@ -302,5 +306,143 @@ export class RoomsService {
     await this.roomMemberRepository.remove(targetMember);
 
     return this.getRoomInfo(roomId);
+  }
+
+  async updateGameSettings(
+    roomId: number,
+    userId: number,
+    totalTeeth: number,
+  ): Promise<RoomResponseDto> {
+    const room = await this.getRoomWithMembers(roomId);
+
+    if (!room) {
+      throw new NotFoundException('방을 찾을 수 없습니다.');
+    }
+
+    // 방장 권한 확인
+    if (room.hostId !== userId) {
+      throw new ForbiddenException('방장만 게임 설정을 변경할 수 있습니다.');
+    }
+
+    // 대기 중인 방에서만 설정 변경 가능
+    if (room.status !== RoomStatus.WAITING) {
+      throw new BadRequestException('대기 중인 방에서만 설정을 변경할 수 있습니다.');
+    }
+
+    // 이빨 개수 업데이트
+    room.totalTeeth = totalTeeth;
+    await this.roomRepository.save(room);
+
+    return this.getRoomInfo(roomId);
+  }
+
+  async startGameDirectly(roomId: number): Promise<Game> {
+    const room = await this.getRoomWithMembers(roomId);
+
+    if (!room) {
+      throw new NotFoundException('방을 찾을 수 없습니다.');
+    }
+
+    if (room.status !== RoomStatus.WAITING) {
+      throw new BadRequestException('이미 진행 중이거나 종료된 방입니다.');
+    }
+
+    // 1. 게임 생성 및 초기화
+    const gameId = `game_${roomId}_${Date.now()}`;
+    const playerIds = room.members.map(member => member.userId);
+    
+    // 2. 위험한 이빨 랜덤 선택 (0부터 totalTeeth-1 중 하나)
+    const dangerTooth = Math.floor(Math.random() * room.totalTeeth);
+    
+    // 3. 턴 순서 랜덤 섞기
+    const turnOrder = [...playerIds].sort(() => Math.random() - 0.5);
+
+    // 4. Game 엔티티 생성
+    const game = this.gameRepository.create({
+      gameId,
+      roomId,
+      totalTeeth: room.totalTeeth,
+      dangerTooth,
+      playerIds,
+      turnOrder,
+      currentTurnIndex: 0,
+      pulledTeeth: [],
+    });
+
+    await this.gameRepository.save(game);
+
+    // 5. 방 상태 변경
+    room.status = RoomStatus.IN_GAME;
+    room.gameStartedAt = new Date();
+    await this.roomRepository.save(room);
+
+    return game;
+  }
+
+  async selectTooth(gameId: string, playerId: number, toothIndex: number): Promise<{ isSafe: boolean; game: Game }> {
+    const game = await this.gameRepository.findOne({
+      where: { gameId },
+    });
+
+    if (!game) {
+      throw new NotFoundException('게임을 찾을 수 없습니다.');
+    }
+
+    // 현재 턴인지 확인
+    const currentPlayerId = game.turnOrder[game.currentTurnIndex];
+    if (currentPlayerId !== playerId) {
+      throw new BadRequestException('당신의 턴이 아닙니다.');
+    }
+
+    // 이미 뽑힌 이빨인지 확인
+    if (game.pulledTeeth.includes(toothIndex)) {
+      throw new BadRequestException('이미 뽑힌 이빨입니다.');
+    }
+
+    // 유효한 이빨 인덱스인지 확인
+    if (toothIndex < 0 || toothIndex >= game.totalTeeth) {
+      throw new BadRequestException('유효하지 않은 이빨입니다.');
+    }
+
+    // 이빨 뽑기
+    game.pulledTeeth.push(toothIndex);
+    
+    const isSafe = toothIndex !== game.dangerTooth;
+
+    if (isSafe) {
+      // 안전한 이빨 → 다음 턴
+      game.currentTurnIndex = (game.currentTurnIndex + 1) % game.turnOrder.length;
+    } else {
+      // 위험한 이빨 → 게임 종료
+      game.status = GameStatus.FINISHED;
+      game.loserId = playerId;
+      
+      // 승자는 다른 플레이어
+      game.winnerId = game.playerIds.find(id => id !== playerId);
+      game.endedAt = new Date();
+
+      // 방 상태도 종료로 변경
+      const room = await this.roomRepository.findOne({ where: { id: game.roomId } });
+      if (room) {
+        room.status = RoomStatus.FINISHED;
+        room.gameEndedAt = new Date();
+        await this.roomRepository.save(room);
+      }
+    }
+
+    await this.gameRepository.save(game);
+    return { isSafe, game };
+  }
+
+  async getGame(gameId: string): Promise<Game> {
+    const game = await this.gameRepository.findOne({
+      where: { gameId },
+    });
+
+    if (!game) {
+      throw new NotFoundException('게임을 찾을 수 없습니다.');
+    }
+
+    return game;
   }
 }

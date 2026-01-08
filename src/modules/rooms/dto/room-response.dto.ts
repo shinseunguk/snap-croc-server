@@ -80,6 +80,12 @@ export class RoomResponseDto {
   currentMembers: number;
 
   @ApiProperty({
+    description: '게임 설정: 이빨 개수',
+    example: 16,
+  })
+  totalTeeth: number;
+
+  @ApiProperty({
     description: '참가자 목록',
     type: [RoomMemberDto],
   })

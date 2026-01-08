@@ -7,11 +7,12 @@ import { RoomsService } from './rooms.service';
 import { RoomsGateway } from './gateways/rooms.gateway';
 import { Room } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
+import { Game } from './entities/game.entity';
 import { AuthModule } from '../../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Room, RoomMember]),
+    TypeOrmModule.forFeature([Room, RoomMember, Game]),
     JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('jwt.secret'),

@@ -42,6 +42,9 @@ export class Room {
   @Column({ default: 8 })
   maxMembers: number;
 
+  @Column({ default: 16 })
+  totalTeeth: number; // 게임 설정: 이빨 개수 (최대 16)
+
   @OneToMany(() => RoomMember, (member) => member.room, {
     cascade: true,
   })

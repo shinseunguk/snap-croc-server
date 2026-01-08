@@ -10,6 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../entities/user.entity';
 import { Room } from '../modules/rooms/entities/room.entity';
 import { RoomMember } from '../modules/rooms/entities/room-member.entity';
+import { Game } from '../modules/rooms/entities/game.entity';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { RoomMember } from '../modules/rooms/entities/room-member.entity';
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
-        entities: [User, Room, RoomMember],
+        entities: [User, Room, RoomMember, Game],
         synchronize: configService.get('nodeEnv') === 'development',
         logging: configService.get('nodeEnv') === 'development',
         timezone: '+09:00',
