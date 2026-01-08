@@ -83,7 +83,7 @@ export class AuthService {
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
 
     // Refresh token을 DB에 저장하고 마지막 로그인 시간 업데이트
-    await this.userRepository.update(user.id, { 
+    await this.userRepository.update(user.id, {
       refreshToken,
       lastLoginAt: new Date(),
     });
@@ -105,8 +105,8 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(refreshToken);
       const user = await this.userRepository.findOne({
-        where: { 
-          id: payload.sub, 
+        where: {
+          id: payload.sub,
           refreshToken,
           status: UserStatus.ACTIVE,
         },
@@ -118,11 +118,11 @@ export class AuthService {
   }
 
   async findById(id: number): Promise<User | null> {
-    return this.userRepository.findOne({ 
-      where: { 
+    return this.userRepository.findOne({
+      where: {
         id,
         status: UserStatus.ACTIVE,
-      } 
+      },
     });
   }
 }

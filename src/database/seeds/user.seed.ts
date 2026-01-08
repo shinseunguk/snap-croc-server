@@ -118,6 +118,6 @@ export async function seedUsers(dataSource: DataSource) {
     console.log(`테스트 사용자가 생성되었습니다: ${savedUser.email}`);
     createdUsers.push(savedUser);
   }
-  
+
   return createdUsers;
 }

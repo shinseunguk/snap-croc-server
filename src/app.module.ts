@@ -7,6 +7,8 @@ import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from './logger/logger.module';
 import { UsersModule } from './modules/users/users.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { RoomsModule } from './modules/rooms/rooms.module';
+import { DocsModule } from './modules/docs/docs.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -26,6 +28,8 @@ import { ImageProcessingService } from './common/multer/image-processing.service
     AuthModule,
     UsersModule,
     StatsModule,
+    RoomsModule,
+    DocsModule,
   ],
   controllers: [AppController],
   providers: [

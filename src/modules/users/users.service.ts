@@ -8,7 +8,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserStatus } from '../../entities/user.entity';
 import { UserResponseDto } from './dto/user-response.dto';
-import { UpdateProfileDto, UpdateProfileResponseDto, AvatarType } from './dto/update-profile.dto';
+import {
+  UpdateProfileDto,
+  UpdateProfileResponseDto,
+  AvatarType,
+} from './dto/update-profile.dto';
 import { ImageProcessingService } from '../../common/multer/image-processing.service';
 import { join } from 'path';
 
@@ -31,7 +35,6 @@ export class UsersService {
 
     return this.mapToUserResponse(user);
   }
-
 
   async checkNicknameAvailability(nickname: string): Promise<boolean> {
     // 닉네임 유효성 검사
@@ -65,8 +68,6 @@ export class UsersService {
     await this.userRepository.save(user);
     await this.userRepository.softDelete(userId);
   }
-
-
 
   async updateProfile(
     userId: number,
@@ -109,11 +110,12 @@ export class UsersService {
       }
 
       // 이미지 리사이징 및 최적화
-      const processedFilePath = await this.imageProcessingService.resizeAndOptimize(
-        profileImageFile.path,
-        300,
-        300,
-      );
+      const processedFilePath =
+        await this.imageProcessingService.resizeAndOptimize(
+          profileImageFile.path,
+          300,
+          300,
+        );
 
       // 상대 경로로 변환
       uploadedImageUrl = processedFilePath.replace(process.cwd(), '');
@@ -136,7 +138,6 @@ export class UsersService {
 
         // 이모지로 변경할 때는 기존 업로드 이미지 삭제하지 않음
         // (사용자가 나중에 다시 이미지로 변경할 수 있도록)
-
       } else if (updateProfileDto.avatarType === AvatarType.IMAGE) {
         // 이미지로 설정
         if (!user.profileImageUrl) {
@@ -161,7 +162,8 @@ export class UsersService {
   private isValidEmoji(emoji: string): boolean {
     // 간단한 이모지 유효성 검사
     // 실제로는 더 정교한 유니코드 이모지 검증이 필요할 수 있음
-    const emojiRegex = /^[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Extended_Pictographic}]+$/u;
+    const emojiRegex =
+      /^[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Extended_Pictographic}]+$/u;
     return emojiRegex.test(emoji) && emoji.length <= 10; // 최대 10자
   }
 
@@ -228,10 +230,20 @@ export class UsersService {
       throw new NotFoundException(`사용자를 찾을 수 없습니다.`);
     }
 
-    const updatedSettings = {
-      ...user.notificationSettings,
-      ...settings,
+    const currentSettings = user.notificationSettings || {
+      game: true,
+      marketing: false,
     };
+    const updatedSettings = {
+      ...currentSettings,
+    };
+
+    if (settings.game !== undefined) {
+      updatedSettings.game = settings.game;
+    }
+    if (settings.marketing !== undefined) {
+      updatedSettings.marketing = settings.marketing;
+    }
 
     user.notificationSettings = updatedSettings;
     await this.userRepository.save(user);

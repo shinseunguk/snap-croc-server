@@ -16,7 +16,10 @@ export class UserResponseDto {
   @ApiProperty({ description: '닉네임', nullable: true })
   nickname?: string;
 
-  @ApiProperty({ description: '프로필 이미지 URL (소셜 로그인)', nullable: true })
+  @ApiProperty({
+    description: '프로필 이미지 URL (소셜 로그인)',
+    nullable: true,
+  })
   profileImage?: string;
 
   @ApiProperty({ description: '커스텀 프로필 이미지 URL', nullable: true })
@@ -25,7 +28,7 @@ export class UserResponseDto {
   @ApiProperty({ description: '아바타 이모지', example: '🐊', nullable: true })
   avatar?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: '실제 표시할 프로필 (우선순위 적용)',
     type: DisplayProfileDto,
   })

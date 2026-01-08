@@ -39,9 +39,9 @@ export class RankingUserDto {
   @ApiProperty({ description: '닉네임', example: '스냅킹' })
   nickname: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: '표시할 프로필',
-    example: { type: 'emoji', value: '🐊', source: 'selected_emoji' }
+    example: { type: 'emoji', value: '🐊', source: 'selected_emoji' },
   })
   displayProfile: {
     type: 'emoji' | 'image';
@@ -69,16 +69,16 @@ export class RankingUserDto {
 }
 
 export class RankingResponseDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: '내 랭킹 정보 (항상 맨 위에 표시)',
     type: RankingUserDto,
-    nullable: true 
+    nullable: true,
   })
   myRanking?: RankingUserDto;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: '랭킹 목록',
-    type: [RankingUserDto] 
+    type: [RankingUserDto],
   })
   rankings: RankingUserDto[];
 

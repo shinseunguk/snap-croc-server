@@ -4,7 +4,7 @@ import configuration from '../../config/configuration';
 
 async function runSeed() {
   const config = configuration();
-  
+
   const dataSource = new DataSource({
     type: 'postgres',
     host: config.database.host,
@@ -24,7 +24,7 @@ async function runSeed() {
     // 시드 데이터 실행
     console.log('테스트 데이터를 생성합니다...');
     await seedUsers(dataSource);
-    
+
     console.log('모든 시드 데이터가 생성되었습니다.');
   } catch (error) {
     console.error('시드 데이터 생성 중 오류가 발생했습니다:', error);

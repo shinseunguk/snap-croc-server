@@ -9,10 +9,8 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  Post,
   UseInterceptors,
   UploadedFile,
-  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,7 +24,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from './dto/user-response.dto';
-import { UpdateProfileDto, UpdateProfileResponseDto } from './dto/update-profile.dto';
+import {
+  UpdateProfileDto,
+  UpdateProfileResponseDto,
+} from './dto/update-profile.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { User } from '../../entities/user.entity';
 import { profileImageMulterConfig } from '../../common/multer/multer.config';
@@ -55,7 +56,6 @@ export class UsersController {
     return this.usersService.getUserInfo(req.user.id);
   }
 
-
   @Get('nickname/check/:nickname')
   @ApiOperation({ summary: '닉네임 중복 확인' })
   @ApiResponse({
@@ -76,9 +76,8 @@ export class UsersController {
   async checkNickname(
     @Param('nickname') nickname: string,
   ): Promise<{ available: boolean; message: string }> {
-    const available = await this.usersService.checkNicknameAvailability(
-      nickname,
-    );
+    const available =
+      await this.usersService.checkNicknameAvailability(nickname);
     return {
       available,
       message: available
@@ -87,14 +86,12 @@ export class UsersController {
     };
   }
 
-
-
   @Put('me/profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('profileImage', profileImageMulterConfig))
-  @ApiOperation({ 
-    summary: '프로필 통합 업데이트 (닉네임 + 아바타 + 이미지를 한 번에)' 
+  @ApiOperation({
+    summary: '프로필 통합 업데이트 (닉네임 + 아바타 + 이미지를 한 번에)',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -115,7 +112,8 @@ export class UsersController {
         },
         avatarValue: {
           type: 'string',
-          description: '아바타 값 (이모지인 경우 필수, 이미지인 경우 생략 가능)',
+          description:
+            '아바타 값 (이모지인 경우 필수, 이미지인 경우 생략 가능)',
           example: '🦖',
         },
         profileImage: {
@@ -139,7 +137,11 @@ export class UsersController {
     @Body() updateProfileDto: UpdateProfileDto,
     @UploadedFile() profileImage?: Express.Multer.File,
   ): Promise<UpdateProfileResponseDto> {
-    return this.usersService.updateProfile(req.user.id, updateProfileDto, profileImage);
+    return this.usersService.updateProfile(
+      req.user.id,
+      updateProfileDto,
+      profileImage,
+    );
   }
 
   @Put('me/settings')
@@ -158,7 +160,10 @@ export class UsersController {
     @Req() req: AuthenticatedRequest,
     @Body() updateSettingsDto: UpdateNotificationSettingsDto,
   ): Promise<UserResponseDto> {
-    return this.usersService.updateNotificationSettings(req.user.id, updateSettingsDto);
+    return this.usersService.updateNotificationSettings(
+      req.user.id,
+      updateSettingsDto,
+    );
   }
 
   @Delete('me')

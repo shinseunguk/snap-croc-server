@@ -32,10 +32,10 @@ export class ImageProcessingService {
         .toFile(processedFileName);
 
       this.logger.log(`이미지 처리 완료: ${processedFileName}`);
-      
+
       // 원본 파일 삭제
       await fs.unlink(filePath);
-      
+
       return processedFileName;
     } catch (error) {
       this.logger.error('이미지 처리 실패:', error);
@@ -52,7 +52,8 @@ export class ImageProcessingService {
       await fs.unlink(filePath);
       this.logger.log(`파일 삭제 완료: ${filePath}`);
     } catch (error) {
-      if (error.code !== 'ENOENT') { // 파일이 존재하지 않는 경우는 무시
+      if (error.code !== 'ENOENT') {
+        // 파일이 존재하지 않는 경우는 무시
         this.logger.error('파일 삭제 실패:', error);
       }
     }
@@ -63,7 +64,7 @@ export class ImageProcessingService {
    */
   async ensureUploadDirectory(): Promise<void> {
     const uploadPath = join(process.cwd(), 'uploads', 'profiles');
-    
+
     try {
       await fs.access(uploadPath);
     } catch {

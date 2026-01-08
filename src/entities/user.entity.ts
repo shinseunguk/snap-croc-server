@@ -7,7 +7,10 @@ import {
   Index,
   DeleteDateColumn,
 } from 'typeorm';
-import { DisplayProfileDto, DisplayProfileType } from '../modules/users/dto/display-profile.dto';
+import {
+  DisplayProfileDto,
+  DisplayProfileType,
+} from '../modules/users/dto/display-profile.dto';
 
 export enum SocialProvider {
   GOOGLE = 'google',
@@ -22,15 +25,15 @@ export enum UserStatus {
 }
 
 export interface NotificationSettings {
-  game: boolean;        // 모든 게임 관련 알림 (초대, 결과 등)
-  marketing: boolean;   // 이벤트 및 프로모션 알림
+  game: boolean; // 모든 게임 관련 알림 (초대, 결과 등)
+  marketing: boolean; // 이벤트 및 프로모션 알림
 }
 
 @Entity('users')
 @Index(['provider', 'socialId'], { unique: true })
 @Index(['status', 'isActive'])
-@Index(['points'])  // 랭킹 조회용
-@Index(['wins'])    // 승리 순위
+@Index(['points']) // 랭킹 조회용
+@Index(['wins']) // 승리 순위
 @Index(['nickname']) // 닉네임 검색
 export class User {
   @PrimaryGeneratedColumn()
@@ -46,10 +49,10 @@ export class User {
   nickname?: string;
 
   @Column({ nullable: true })
-  profileImage: string;  // 소셜 로그인에서 가져온 프로필 이미지 URL
+  profileImage: string; // 소셜 로그인에서 가져온 프로필 이미지 URL
 
   @Column({ nullable: true })
-  profileImageUrl?: string;  // 사용자가 업로드한 커스텀 프로필 이미지 URL
+  profileImageUrl?: string; // 사용자가 업로드한 커스텀 프로필 이미지 URL
 
   @Column({
     type: 'enum',
@@ -77,17 +80,17 @@ export class User {
   points: number;
 
   // 사용자 커스터마이징
-  @Column({ default: '🐊', nullable: true })  // 기본 악어 이모지
+  @Column({ default: '🐊', nullable: true }) // 기본 악어 이모지
   avatar?: string;
 
   @Column({ default: 0 })
   gamesPlayed: number;
 
   @Column({ default: 0 })
-  winStreak: number;  // 연승 횟수
+  winStreak: number; // 연승 횟수
 
   @Column({ default: 0 })
-  bestWinStreak: number;  // 최고 연승 기록
+  bestWinStreak: number; // 최고 연승 기록
 
   @Column({
     type: 'enum',
@@ -103,8 +106,8 @@ export class User {
     type: 'jsonb',
     nullable: true,
     default: {
-      game: true,         // 게임 알림은 기본적으로 켜짐
-      marketing: false,   // 마케팅 알림은 기본적으로 꺼짐
+      game: true, // 게임 알림은 기본적으로 켜짐
+      marketing: false, // 마케팅 알림은 기본적으로 꺼짐
     },
   })
   notificationSettings?: NotificationSettings;

@@ -1,4 +1,7 @@
-import { DisplayProfileDto, DisplayProfileType } from '../../modules/users/dto/display-profile.dto';
+import {
+  DisplayProfileDto,
+  DisplayProfileType,
+} from '../../modules/users/dto/display-profile.dto';
 
 /**
  * 사용자 프로필 데이터로부터 실제 표시할 프로필을 계산하는 유틸리티

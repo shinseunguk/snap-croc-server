@@ -26,12 +26,12 @@ export const profileImageMulterConfig = {
   }),
   fileFilter: (req: Request, file: Express.Multer.File, cb) => {
     const ext = extname(file.originalname).toLowerCase();
-    
+
     // 파일 확장자 검증
     if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
       return cb(
         new BadRequestException(
-          `지원하지 않는 파일 형식입니다. 허용되는 형식: ${ALLOWED_IMAGE_EXTENSIONS.join(', ')}`
+          `지원하지 않는 파일 형식입니다. 허용되는 형식: ${ALLOWED_IMAGE_EXTENSIONS.join(', ')}`,
         ),
         false,
       );

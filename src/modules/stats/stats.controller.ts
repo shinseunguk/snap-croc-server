@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Req,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -52,9 +46,10 @@ export class RankingsController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ 
+  @ApiOperation({
     summary: '전체 랭킹 조회',
-    description: '포인트 기준 전체 랭킹을 조회합니다. 내 랭킹이 myRanking 필드에 표시됩니다.' 
+    description:
+      '포인트 기준 전체 랭킹을 조회합니다. 내 랭킹이 myRanking 필드에 표시됩니다.',
   })
   @ApiQuery({
     name: 'page',
@@ -80,5 +75,4 @@ export class RankingsController {
   ): Promise<RankingResponseDto> {
     return this.statsService.getRankings(query, req.user.id);
   }
-
 }

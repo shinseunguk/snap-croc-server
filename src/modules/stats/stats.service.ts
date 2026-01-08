@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, LessThan } from 'typeorm';
 import { User } from '../../entities/user.entity';
-import { UserStatsDto, RankingUserDto, RankingResponseDto } from './dto/stats-response.dto';
+import {
+  UserStatsDto,
+  RankingUserDto,
+  RankingResponseDto,
+} from './dto/stats-response.dto';
 import { RankingQueryDto } from './dto/ranking-query.dto';
 
 @Injectable()
@@ -57,7 +61,7 @@ export class StatsService {
       order: {
         points: 'DESC',
         wins: 'DESC', // 포인트가 같을 때는 승리 수로 정렬
-        id: 'ASC',    // 모든 값이 같을 때는 ID 순으로
+        id: 'ASC', // 모든 값이 같을 때는 ID 순으로
       },
       skip: offset,
       take: limit,
@@ -96,7 +100,9 @@ export class StatsService {
     };
   }
 
-  private async getMyRanking(userId: number): Promise<RankingUserDto | undefined> {
+  private async getMyRanking(
+    userId: number,
+  ): Promise<RankingUserDto | undefined> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });

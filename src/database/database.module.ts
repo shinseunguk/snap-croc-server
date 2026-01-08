@@ -8,6 +8,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../entities/user.entity';
+import { Room } from '../modules/rooms/entities/room.entity';
+import { RoomMember } from '../modules/rooms/entities/room-member.entity';
 
 @Module({
   imports: [
@@ -20,7 +22,7 @@ import { User } from '../entities/user.entity';
         username: configService.get('database.username'),
         password: configService.get('database.password'),
         database: configService.get('database.database'),
-        entities: [User],
+        entities: [User, Room, RoomMember],
         synchronize: configService.get('nodeEnv') === 'development',
         logging: configService.get('nodeEnv') === 'development',
         timezone: '+09:00',
