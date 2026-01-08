@@ -81,20 +81,30 @@ export class AuthController {
 
   // JWT 토큰 갱신
   @Post('refresh')
-  @ApiOperation({ summary: 'JWT 토큰 갱신' })
+  @ApiOperation({ summary: 'JWT 토큰 갱신 (Rolling 방식)' })
   @ApiBody({ type: RefreshTokenDto })
   @ApiResponse({ status: 200, description: '토큰 갱신 성공' })
   @ApiResponse({ status: 401, description: '유효하지 않은 리프레시 토큰' })
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    const user = await this.authService.validateRefreshToken(
+    const result = await this.authService.validateRefreshToken(
       refreshTokenDto.refreshToken,
     );
 
-    if (!user) {
+    if (!result) {
       throw new Error('Invalid refresh token');
     }
 
-    return this.authService.generateTokens(user);
+    return {
+      accessToken: result.newTokens.accessToken,
+      refreshToken: result.newTokens.refreshToken,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        profileImage: result.user.profileImage,
+        provider: result.user.provider,
+      },
+    };
   }
 
   // 사용자 프로필 조회

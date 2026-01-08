@@ -101,7 +101,7 @@ export class AuthService {
     };
   }
 
-  async validateRefreshToken(refreshToken: string): Promise<User | null> {
+  async validateRefreshToken(refreshToken: string): Promise<{ user: User; newTokens: { accessToken: string; refreshToken: string } } | null> {
     try {
       const payload = this.jwtService.verify(refreshToken);
       const user = await this.userRepository.findOne({
@@ -111,8 +111,36 @@ export class AuthService {
           status: UserStatus.ACTIVE,
         },
       });
-      return user;
+
+      if (!user) {
+        return null;
+      }
+
+      // Rolling 방식: 새로운 토큰들 생성
+      const newPayload = {
+        sub: user.id,
+        email: user.email,
+        provider: user.provider,
+      };
+
+      const newAccessToken = this.jwtService.sign(newPayload);
+      const newRefreshToken = this.jwtService.sign(newPayload, { expiresIn: '30d' });
+
+      // 새로운 refresh token을 DB에 저장
+      await this.userRepository.update(user.id, {
+        refreshToken: newRefreshToken,
+        lastLoginAt: new Date(),
+      });
+
+      return {
+        user,
+        newTokens: {
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+        },
+      };
     } catch {
+      // JWT 만료 또는 유효하지 않은 토큰
       return null;
     }
   }
