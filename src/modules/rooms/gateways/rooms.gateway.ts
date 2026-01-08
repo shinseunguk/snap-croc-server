@@ -562,7 +562,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private getRemainingTeeth(totalTeeth: number, pulledTeeth: number[]): number[] {
-    const remaining = [];
+    const remaining: number[] = [];
     for (let i = 0; i < totalTeeth; i++) {
       if (!pulledTeeth.includes(i)) {
         remaining.push(i);
@@ -572,9 +572,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async getUserInfo(userId: number) {
-    // 실제로는 User 서비스에서 가져와야 하지만, 임시로 방 멤버에서 찾기
-    const rooms = await this.roomsService.getAllRoomsForUser?.(userId);
-    // 이 부분은 실제 구현에서 User 엔티티를 직접 조회해야 합니다
+    // 임시로 고정 정보 반환 (실제로는 User 서비스에서 조회)
     return { id: userId, nickname: `Player${userId}`, avatar: { type: 'emoji', value: '🦖' } };
   }
 

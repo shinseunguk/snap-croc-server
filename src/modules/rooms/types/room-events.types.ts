@@ -42,6 +42,10 @@ export interface ServerToClientEvents {
   game_countdown: (data: CountdownData) => void;
   game_started: (data: GameStartedData) => void;
 
+  // 게임 종료
+  game_ended: (data: GameEndedData) => void;
+  return_to_room: (data: ReturnToRoomData) => void;
+
   // 에러
   error: (data: ErrorData) => void;
 }
@@ -163,4 +167,29 @@ export interface CrocodileBiteData {
   nickname: string;
   toothIndex: number; // 위험한 이빨 번호
   message: string; // "악어가 입을 다물었습니다!"
+}
+
+export interface GameEndedData {
+  roomId: number;
+  gameId: string;
+  winner: {
+    id: number;
+    nickname: string;
+    avatar: { type: string; value: string };
+  };
+  loser: {
+    id: number;
+    nickname: string;
+    eliminatedBy: 'crocodile_bite';
+    toothIndex: number;
+  };
+  stats: {
+    duration: number; // 게임 지속 시간 (초)
+    totalTurns: number;
+    teethPulled: number;
+  };
+}
+
+export interface ReturnToRoomData {
+  roomId: number;
 }

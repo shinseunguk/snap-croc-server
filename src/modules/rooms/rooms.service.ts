@@ -209,27 +209,6 @@ export class RoomsService {
     return this.getRoomInfo(roomId);
   }
 
-  async startGameDirectly(roomId: number): Promise<void> {
-    const room = await this.roomRepository.findOne({
-      where: { id: roomId },
-      relations: ['members'],
-    });
-
-    if (!room) {
-      throw new NotFoundException('방을 찾을 수 없습니다.');
-    }
-
-    if (room.status !== RoomStatus.WAITING) {
-      throw new BadRequestException(
-        '대기 중인 방에서만 게임을 시작할 수 있습니다.',
-      );
-    }
-
-    // 게임 시작
-    room.status = RoomStatus.IN_GAME;
-    room.gameStartedAt = new Date();
-    await this.roomRepository.save(room);
-  }
 
   async leaveRoom(roomId: number, userId: number): Promise<void> {
     const member = await this.roomMemberRepository.findOne({
@@ -418,7 +397,10 @@ export class RoomsService {
       game.loserId = playerId;
       
       // 승자는 다른 플레이어
-      game.winnerId = game.playerIds.find(id => id !== playerId);
+      const winnerId = game.playerIds.find(id => id !== playerId);
+      if (winnerId) {
+        game.winnerId = winnerId;
+      }
       game.endedAt = new Date();
 
       // 방 상태도 종료로 변경
@@ -444,5 +426,18 @@ export class RoomsService {
     }
 
     return game;
+  }
+
+  private async getRoomWithMembers(roomId: number): Promise<Room> {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['members'],
+    });
+
+    if (!room) {
+      throw new NotFoundException('방을 찾을 수 없습니다.');
+    }
+
+    return room;
   }
 }
