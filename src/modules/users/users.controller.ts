@@ -27,6 +27,7 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UpdateProfileDto, UpdateProfileResponseDto } from './dto/update-profile.dto';
+import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { User } from '../../entities/user.entity';
 import { profileImageMulterConfig } from '../../common/multer/multer.config';
 import type { Request } from 'express';
@@ -139,6 +140,25 @@ export class UsersController {
     @UploadedFile() profileImage?: Express.Multer.File,
   ): Promise<UpdateProfileResponseDto> {
     return this.usersService.updateProfile(req.user.id, updateProfileDto, profileImage);
+  }
+
+  @Put('me/settings')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '알림 설정 변경' })
+  @ApiBody({ type: UpdateNotificationSettingsDto })
+  @ApiResponse({
+    status: 200,
+    description: '알림 설정 변경 성공',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  @ApiResponse({ status: 401, description: '인증 필요' })
+  async updateNotificationSettings(
+    @Req() req: AuthenticatedRequest,
+    @Body() updateSettingsDto: UpdateNotificationSettingsDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.updateNotificationSettings(req.user.id, updateSettingsDto);
   }
 
   @Delete('me')

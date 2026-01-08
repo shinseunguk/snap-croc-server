@@ -215,4 +215,27 @@ export class UsersService {
       lastLoginAt: user.lastLoginAt,
     };
   }
+
+  async updateNotificationSettings(
+    userId: number,
+    settings: { game?: boolean; marketing?: boolean },
+  ): Promise<UserResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`사용자를 찾을 수 없습니다.`);
+    }
+
+    const updatedSettings = {
+      ...user.notificationSettings,
+      ...settings,
+    };
+
+    user.notificationSettings = updatedSettings;
+    await this.userRepository.save(user);
+
+    return this.mapToUserResponse(user);
+  }
 }
